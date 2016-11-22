@@ -1,7 +1,7 @@
 asteroids = {}
 asteroids.MAXRADIUS = 100	
 asteroids.MINRADIUS = 10
-asteroids.CREATE_CHANCE = 20  --chance = 1/value
+asteroids.CREATE_CHANCE = 40  --chance = 1/value
 asteroids.DEFAULT_NODENAME = "default:stone"
 asteroids.MAX_LAYERS = 20
 asteroids.MIN_HIGH = 2000
