@@ -1,6 +1,7 @@
 asteroids = {}
 asteroids.DEFAULT_NODENAME = "asteroids:stone_replacement"
 asteroids.MIN_HIGH = 2000
+asteroids.gene_try = 0
 
 function table.shallow_deep_copy(t)
 	local t2 = {}
@@ -25,6 +26,7 @@ minetest.register_node( "asteroids:stone_replacement", {
 	drop = 'default:cobble',
 	legacy_mineral = true,
 	sounds = default.node_sound_stone_defaults(),
+	is_ground_content = false,
 })
 
 
@@ -36,6 +38,7 @@ minetest.register_node( "asteroids:star_material1", {
 	light_source = LIGHT_MAX,
 	sounds = default.node_sound_stone_defaults(),
 	drop = "default:gold_ingot",
+	is_ground_content = false,
 }) 
 
 minetest.register_node( "asteroids:star_material2", {
@@ -46,8 +49,97 @@ minetest.register_node( "asteroids:star_material2", {
 	light_source = LIGHT_MAX,
 	sounds = default.node_sound_stone_defaults(),
 	drop = "default:gold_ingot",
+	is_ground_content = false,
 }) 
 
+minetest.register_node("asteroids:air", {
+	description = "Air",
+	walkable = false,
+	pointable = false,
+	diggable = false,
+	buildable_to = true,
+	drawtype = "glasslike",
+	post_effect_color = {a = 20, r = 220, g = 200, b = 200},
+	tiles = {"asteroid_air.png^[colorize:#D0D0F055"},
+	alpha = 50,
+	groups = {msa=1,not_in_creative_inventory=0},
+	paramtype = "light",
+	sunlight_propagates =true,
+	is_ground_content = false,
+})
+
+minetest.register_node("asteroids:brown_gas", {
+	description = "Air",
+	walkable = false,
+	pointable = false,
+	diggable = false,
+	buildable_to = true,
+	drawtype = "glasslike",
+	post_effect_color = {a = 20, r = 220, g = 200, b = 200},
+	tiles = {"asteroid_air.png^[colorize:#E0D00066"},
+	alpha = 50,
+	groups = {msa=1,not_in_creative_inventory=0},
+	paramtype = "light",
+	sunlight_propagates =true,
+	is_ground_content = false,
+})
+
+minetest.register_node("asteroids:grass", {
+	description = "Grass",
+	tiles = {"asteroid_grass.png"},
+	groups = {crumbly = 3, soil = 1},
+	sounds = default.node_sound_dirt_defaults(),
+	drop = "default:dirt",
+	is_ground_content = false,
+})
+
+minetest.register_node("asteroids:dirt", {
+	description = "Grass",
+	tiles = {"default_dirt.png"},
+	groups = {crumbly = 3, soil = 1},
+	sounds = default.node_sound_dirt_defaults(),
+	drop = "default:dirt",
+	is_ground_content = false,
+})
+
+minetest.register_node("asteroids:water_source", {
+	description = "Grass",
+	tiles = {"default_dirt.png"},
+	groups = {crumbly = 3, soil = 1},
+	sounds = default.node_sound_dirt_defaults(),
+	drop = "default:dirt",
+	is_ground_content = false,
+})
+
+
+----------------------------------------------------------------------------------------------------------
+--WATER
+----------------------------------------------------------------------------------------------------------
+minetest.register_node("asteroids:water_source", {
+	description = "Air",
+	walkable = false,
+	pointable = false,
+	diggable = false,
+	buildable_to = true,
+	drawtype = "glasslike",
+	post_effect_color = {a = 20, r = 220, g = 200, b = 200},
+	tiles = {"asteroid_water.png"},
+	alpha = 50,
+	paramtype = "light",
+	sunlight_propagates =true,
+	is_ground_content = false,
+	liquid_viscosity = 1,
+	post_effect_color = {a = 103, r = 30, g = 60, b = 90},
+	groups = {water = 3, liquid = 3, puts_out_fire = 1},
+})
+
+if bucket then 
+	bucket.liquids["asteroids:water_source"] = {
+		source = "asteroids:water_source",
+		flowing = "air",
+		itemname = "bucket:bucket_water",
+	}
+end
 ----------------------------------------------------------------------------------------------------------
 --STAR NODES DAMAGE
 ----------------------------------------------------------------------------------------------------------
@@ -86,11 +178,12 @@ spheres: {{radius, {{node, chance}, ...}}, ...}
 ]]--
 
 print("ASTEROIDS PLANET REGISTRATION:")
-function asteroids.register_planet(planet_name, chance, spheres)
+function asteroids.register_planet(planet_name, chance, spheres, on_construct)
         local planet = {}
+	planet.on_construct = on_construct
 	planet.name = planet_name
 	print("REGISTER PLANET:", planet.name)
-	planet.chance = chance
+	planet.chance = chance *20
 	planet.spheres = {}
 	for i=1,#spheres do
 	        planet.spheres[i] = {}
@@ -107,6 +200,9 @@ function asteroids.register_planet(planet_name, chance, spheres)
 			planet.spheres[i].ores[j] = {name=name,
 			        c1 = chance_start,
 				c2 = chance_end}
+			if spheres[i][2][j][3] then
+			       planet.spheres[i].construct = name
+			end
 		end
 		planet.spheres[i].sum_chances = sum_chances
 	end
@@ -118,13 +214,15 @@ function asteroids.register_planet(planet_name, chance, spheres)
 it have to be like this: {{[0]="default:stone"}} that one planet is generated!
 ]]--
 	
-function asteroids.register_planet_group(planet_name, chance, spheres, radius_offsets, nodename_changes)
+function asteroids.register_planet_group(planet_name, chance, spheres, on_construct, radius_offsets, nodename_changes)
+        print(dump(radius_offsets))
 	for _, radius_offset in pairs(radius_offsets) do
 	        for key, nodename_change in pairs(nodename_changes) do
 			local planet = {}
+			planet.on_construct = on_construct
         	        planet.name = planet_name..";rad:"..radius_offset..";change:"..key
 			print("REGISTER PLANET GROUP ELEMENT:", planet.name)
-		        planet.chance = chance
+		        planet.chance = chance*20
 		        planet.spheres = {}
 		        for i=1,#spheres do
 				if (radius_offset + spheres[i][1]) > 0 then
@@ -144,6 +242,9 @@ function asteroids.register_planet_group(planet_name, chance, spheres, radius_of
 				        	planet.spheres[i].ores[j] = {name=name,
 				                	c1 = chance_start,
 				        		c2 = chance_end}
+						if spheres[i][2][j][3] then
+						        planet.spheres[i].construct = name
+						end
 			        	end
 			        	planet.spheres[i].sum_chances = sum_chances
 				end
@@ -154,7 +255,7 @@ function asteroids.register_planet_group(planet_name, chance, spheres, radius_of
 end
 	
 function random_ore(sphere)
-        rnd = math.random(1, sphere.sum_chances)
+        local rnd = math.random(1, sphere.sum_chances)
 	for _, node in pairs(sphere.ores) do
 	        if (node.c1 <= rnd) and (rnd <= node.c2) then
 		        return minetest.get_content_id(node.name)
@@ -165,19 +266,74 @@ end
 
 --ASTEROIDS:
 
---[[asteroids.register_planet_group("dirty", 20, {
-	{11, {
-	        {"default:dirt", 1}, 
-		{"default:sand", 2}
+--[[
+on_construct = function(pos) 
+		local nodes = minetest.find_nodes_in_area(
+		        {x=-2+pos.x, y=-2+pos.y, z=-2+pos.z}, 
+			{x=2+pos.x, y=2+pos.y, z=2+pos.z}, 
+			"asteroids:grass")
+		local water = minetest.find_nodes_in_area(
+		        {x=-2+pos.x, y=-2+pos.y, z=-2+pos.z}, 
+			{x=2+pos.x, y=2+pos.y, z=2+pos.z}, 
+			"asteroids:water_source")
+		if not (#water <= 1) then return end
+	        for _, foundpos in pairs(nodes) do
+			if foundpos and minetest.get_node(foundpos).name == "asteroids:grass" then
+			        print(pos.x, pos.y, pos.z)
+			        minetest.after(10, minetest.set_node, foundpos, {name="asteroids:water_source"})
+			end
+		end
+        end,
+]]--
+	
+asteroids.register_planet("earth", 1, {
+	{60, {
+	        {"asteroids:air", 1}, 
+		}
+	},
+	{59, {
+	        {"air", 1}, 
+		}
+	},
+	{40, {
+	        {"asteroids:grass", 30}, 
+		{"asteroids:water_source", 1, 1}, 
+		{"default:sapling", 1},
+		}
+	},
+	{39, {
+	        {"asteroids:dirt", 1}, 
 		}
 	},
 	},
+	function(pos, planet) 
+	        print("EARTH GENERATED", pos.x, pos.y, pos.z) 
+		local nodes = minetest.find_nodes_in_area(
+		        {x=-43+pos.x, y=-43+pos.y, z=-43+pos.z}, 
+			{x=43+pos.x, y=43+pos.y, z=43+pos.z}, 
+			"asteroids:water_source")
+		for _, wpos in pairs(nodes) do
+		        local grass = minetest.find_nodes_in_area(
+		                {x=-2+wpos.x, y=-2+wpos.y, z=-2+wpos.z}, 
+			        {x=2+wpos.x, y=2+wpos.y, z=2+wpos.z}, 
+			        "asteroids:grass")
+			for _, grass_pos in pairs(grass) do
+			        minetest.set_node(grass_pos, {name="asteroids:water_source"})
+			end
+		end
+		        
+	end,
 	--group
 	{10, 20}, 
-	{{["default:dirt"]="default:dirt"}, {["default:dirt"]="default:stone"}}
-	)]]--
+	{
+	           {["default:dirt"]="default:dirt"}, 
+	           {["default:dirt"]="default:stone"}
+	}
+)
 	
-asteroids.register_planet_group("all ores", 300, {
+print(dump(asteroids.registered_planets))
+	
+asteroids.register_planet_group("all ores", 100, {
         {60, {
 	        {"m1", 30}, 
 		{"m2", 10},
@@ -203,6 +359,10 @@ asteroids.register_planet_group("all ores", 300, {
 		{"default:stone_with_gold", 2}
 		}
 	},
+	{36, {
+		{"default:lava_source", 1}
+		}
+	},
 	{35, {
 	        {"default:lava_source", 100}, 
 		{"default:stone_with_mese", 1}
@@ -215,13 +375,13 @@ asteroids.register_planet_group("all ores", 300, {
 		}
 	},
 	},
+	nil,
 	{-20, 0, 20},
 	{
 	        ["dirt"]    = {["m1"]="default:dirt", ["m2"]="default:sand"}, 
-	        ["moon"]= {["m1"]="default:stone", ["m2"]="default:gravel"},
+	        ["moon"]= {["m1"]="default:gravel", ["m2"]="default:stone"},
 		["ice"]    = {["m1"]="default:ice", ["m2"]="default:snowblock"},
 		["sand"] = {["m1"]="default:sandstone", ["m2"]="default:dirt"},
-		["STAR"]  = {["m1"]="asteroids:star_material1", ["m2"]="asteroids:star_material2"}
 	}
 	)
 
@@ -298,7 +458,11 @@ asteroids.generate_asteroid = function(pos)
 	local choosen_planets = {}
 	local planet_nr = 0
 	for index, planet in pairs(asteroids.registered_planets) do
-	        if math.random(1, planet.chance) == 1 then
+	        asteroids.gene_try = asteroids.gene_try +1
+		print(asteroids.gene_try)
+		local rnd = math.random(1, planet.chance)
+	        if rnd == 1 then
+		        print(rnd, planet.chance)
 		        table.insert(choosen_planets, 1, index)
 			planet_nr = planet_nr + 1
 		end
@@ -312,8 +476,8 @@ asteroids.generate_asteroid = function(pos)
         for i,sphere in pairs(planet.spheres) do
                 asteroids.sphere(pos, sphere)
 		minetest.chat_send_all(minetest.pos_to_string(pos)..planet.name.."sphere"..i)
-		print(dump(sphere))
 	end
+	if planet.on_construct then planet.on_construct(pos, planet) end
 	minetest.chat_send_all(minetest.pos_to_string(pos)..planet.name.." generated")
 end	
 
