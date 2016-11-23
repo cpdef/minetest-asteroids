@@ -65,98 +65,8 @@ minetest.register_abm({
 		end
 	end,
 })
---[[ DEPCREATED
 ----------------------------------------------------------------------------------------------------------
---ORES
-----------------------------------------------------------------------------------------------------------
-asteroids.registered_ores = {}
-for i = 1, asteroids.MAX_LAYERS do
-        asteroids.registered_ores[i] = {used=0, ores={}}
-end
-
-function asteroids.register_ore(
-                node_name,  --name of the node for the ore
-		chance, --chance for generation of the ore (real chance = chance/1000
-		max_high, --max and min are between 1 and asteroids.MAX_LAYERS (normaly 20) one layer are 5 nodes
-		min_high) -- 20 is most down 1 is on surface
-		print("ASTERORE:", node_name, chance, max_high, min_high)
-		for i=max_high, min_high do
-		        local used = asteroids.registered_ores[i].used
-			local ores = asteroids.registered_ores[i].ores
-			local node_id = minetest.get_content_id(node_name)
-			if (node_name == "PLANETMATERIAL1" or node_name == "PLANETMATERIAL2") then
-			        node_id = node_name
-			end
-                        ores[node_id]={c1=used, c2=used+chance}
-			asteroids.registered_ores[i] = {used = used+chance, ores=ores}
-		end
-end
-
-
---ores:
-print("ASTEROIDS REGISTER ORES")
-asteroids.register_ore("PLANETMATERIAL1", 950, 1, 1)
-asteroids.register_ore("PLANETMATERIAL2", 50, 1, 3)
-asteroids.register_ore("PLANETMATERIAL1", 700, 2, 2)
-asteroids.register_ore("default:gravel", 200, 2, 3)
-asteroids.register_ore("default:water_source",        700, 3, 3)
-asteroids.register_ore("default:lava_source",  900, 7, asteroids.MAX_LAYERS)
-
-asteroids.register_ore("default:stone_with_iron",         50, 3, 5)
-asteroids.register_ore("default:stone_with_copper",    40, 5, 7)
-asteroids.register_ore("default:stone_with_gold",        30, 7, 9)
-asteroids.register_ore("default:stone_with_mese",      20, 8, 10)
-asteroids.register_ore("default:stone_with_diamond", 20, 9, 11)
-
-
-print("MOREORES?: ", minetest.get_modpath("moreores"))
-if not (minetest.get_modpath("moreores") == nil) then
-        print("ASTEROID ADD MOREORES")
-        asteroids.register_ore("moreores:mineral_tin",        60, 2, 5)
-        asteroids.register_ore("moreores:mineral_silver",    30, 5, 7)
-	asteroids.register_ore("moreores:mineral_mithril",   10, 7, 9)
-end
-
-
-print("ASTEROIDS ORE_REGISTRATION [ ok ]")
-----------------------------------------------------------------------------------------------------------
---PLANETTYPES
-----------------------------------------------------------------------------------------------------------
-print("ASTEROIDS REGISTER PLANETTYPES")
-asteroids.registered_planettypes = {}
-function asteroids.register_planettype(material1, material2)
-        print(material1, material2)
-        local ores = asteroids.registered_ores
-	
-        local planettype = table.shallow_deep_copy(ores) --clone of org ores
-	for i=1, asteroids.MAX_LAYERS do
-		for node_id, chance in pairs(ores[i].ores) do
-		        --Reset PLANETMATERIAL
-		        if node_id == "PLANETMATERIAL1" then
-				planettype[i].ores[minetest.get_content_id(material1)] = chance
-				planettype[i].ores[node_id] = nil
-			elseif node_id == "PLANETMATERIAL2" then
-				planettype[i].ores[minetest.get_content_id(material2)] = chance
-				planettype[i].ores[node_id] = nil
-			end
-		end
-	end
-	--print(dump(planettype))
-        table.insert(asteroids.registered_planettypes, 1, planettype)
-end
-
-asteroids.register_planettype("default:dirt", "default:sand")
-asteroids.register_planettype("default:ice", "default:snowblock")
-asteroids.register_planettype("default:stone", "default:gravel")
-asteroids.register_planettype("default:sandstone", "default:desert_sand")
---STAR!
-asteroids.register_planettype("asteroids:star_material1", "asteroids:star_material2")
-
-
-print("ASTEROIDS PLANETTYPE_REGISTRATION [ ok ]")
-]]--
-----------------------------------------------------------------------------------------------------------
--- NEWPLANETTYPES
+-- PLANETREGISTRATION
 ----------------------------------------------------------------------------------------------------------
 asteroids.registered_planets = {}
 
@@ -175,10 +85,11 @@ planet
 spheres: {{radius, {{node, chance}, ...}}, ...}
 ]]--
 
-
+print("ASTEROIDS PLANET REGISTRATION:")
 function asteroids.register_planet(planet_name, chance, spheres)
         local planet = {}
 	planet.name = planet_name
+	print("REGISTER PLANET:", planet.name)
 	planet.chance = chance
 	planet.spheres = {}
 	for i=1,#spheres do
@@ -190,9 +101,9 @@ function asteroids.register_planet(planet_name, chance, spheres)
 		        local chance = spheres[i][2][j][2]
 			local name = spheres[i][2][j][1]
 			
-		        chance_start = sum_chances+1
+		        local chance_start = sum_chances+1
 		        sum_chances = sum_chances+chance
-			chance_end = sum_chances
+			local chance_end = sum_chances
 			planet.spheres[i].ores[j] = {name=name,
 			        c1 = chance_start,
 				c2 = chance_end}
@@ -201,6 +112,46 @@ function asteroids.register_planet(planet_name, chance, spheres)
 	end
 	table.insert(asteroids.registered_planets, 1, planet)
 	end
+	
+--[[nodename_change:
+{here_can_be_key_for_name={oldname=newname, oldname2=newname2}, {oldname=newname2}}
+it have to be like this: {{[0]="default:stone"}} that one planet is generated!
+]]--
+	
+function asteroids.register_planet_group(planet_name, chance, spheres, radius_offsets, nodename_changes)
+	for _, radius_offset in pairs(radius_offsets) do
+	        for key, nodename_change in pairs(nodename_changes) do
+			local planet = {}
+        	        planet.name = planet_name..";rad:"..radius_offset..";change:"..key
+			print("REGISTER PLANET GROUP ELEMENT:", planet.name)
+		        planet.chance = chance
+		        planet.spheres = {}
+		        for i=1,#spheres do
+				if (radius_offset + spheres[i][1]) > 0 then
+				        planet.spheres[i] = {}
+			                planet.spheres[i].radius = spheres[i][1]+radius_offset
+					planet.spheres[i].ores = {}
+			        	local sum_chances = 0
+			        	for j=1,#spheres[i][2] do
+		        	 	        local chance = spheres[i][2][j][2]
+				        	local name = spheres[i][2][j][1]
+						for change_name, newname in pairs(nodename_change) do
+						        if name == change_name then name = newname end
+			                        end
+		        	        	local chance_start = sum_chances+1
+		        	        	sum_chances = sum_chances+chance
+				        	local chance_end = sum_chances
+				        	planet.spheres[i].ores[j] = {name=name,
+				                	c1 = chance_start,
+				        		c2 = chance_end}
+			        	end
+			        	planet.spheres[i].sum_chances = sum_chances
+				end
+		        end
+		        table.insert(asteroids.registered_planets, 1, planet)
+	        end
+	end
+end
 	
 function random_ore(sphere)
         rnd = math.random(1, sphere.sum_chances)
@@ -212,25 +163,74 @@ function random_ore(sphere)
 	return minetest.get_content_id(asteroids.DEFAULT_NODENAME)
 end
 
+--ASTEROIDS:
 
---for now only one planet registered (for test)
-asteroids.register_planet("one", 10, {
-        {10, {
-	        {"default:dirt", 1}, 
-		{"default:stone", 2}
-		}
-	},
+--[[asteroids.register_planet_group("dirty", 20, {
 	{11, {
 	        {"default:dirt", 1}, 
 		{"default:sand", 2}
 		}
+	},
+	},
+	--group
+	{10, 20}, 
+	{{["default:dirt"]="default:dirt"}, {["default:dirt"]="default:stone"}}
+	)]]--
+	
+asteroids.register_planet_group("all ores", 300, {
+        {60, {
+	        {"m1", 10}, 
+		{"m2", 20},
+		}
+	},
+	{55, {
+	        {"default:water_source", 9}, 
+		{"default:gravel", 1}
+		}
+	},
+	{50, {
+	        {asteroids.DEFAULT_NODENAME, 100}, 
+		{"default:stone_with_iron", 5}
+		}
+	},
+	{45, {
+	        {asteroids.DEFAULT_NODENAME, 100}, 
+		{"default:stone_with_copper", 3}
+		}
+	},
+	{40, {
+	        {asteroids.DEFAULT_NODENAME, 100}, 
+		{"default:stone_with_gold", 2}
+		}
+	},
+	{36, {
+		{"default:lava_source", 1}
+		}
+	},
+	{35, {
+	        {"default:lava_source", 100}, 
+		{"default:stone_with_mese", 1}
+		}
+	},
+	{30, {
+	        {"default:lava_source", 100}, 
+		{"default:stone_with_diamond", 1},
+		{"default:stone_with_mese", 1}
+		}
+	},
+	},
+	{-20, 0, 20},
+	{
+	        ["dirt"]    = {["m1"]="default:dirt", ["m2"]="default:sand"}, 
+	        ["moon"]= {["m1"]="default:stone", ["m2"]="default:gravel"},
+		["ice"]    = {["m1"]="default:ice", ["m2"]="default:snowblock"},
+		["sand"] = {["m1"]="default:sandstone", ["m2"]="default:dirt"},
+		["STAR"]  = {["m1"]="asteroids:star_material1", ["m2"]="asteroids:star_material2"}
 	}
-	})
+	)
 
 
-
-
-
+print("ASTEROIDS PLANET REGISTRATION [ ok ]")
 ----------------------------------------------------------------------------------------------------------
 --MAPGENERATION
 ----------------------------------------------------------------------------------------------------------
@@ -313,8 +313,10 @@ asteroids.generate_asteroid = function(pos)
         local planet = asteroids.registered_planets[index]
 	minetest.chat_send_all(minetest.pos_to_string(pos)..planet.name)
 	
-        for _,sphere in pairs(planet.spheres) do
+        for i,sphere in pairs(planet.spheres) do
                 asteroids.sphere(pos, sphere)
+		minetest.chat_send_all(minetest.pos_to_string(pos)..planet.name.."sphere"..i)
+		print(dump(sphere))
 	end
 	minetest.chat_send_all(minetest.pos_to_string(pos)..planet.name.." generated")
 end	
