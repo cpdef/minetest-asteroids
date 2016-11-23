@@ -1,5 +1,4 @@
 # minetest-asteroids
-release 0.1
 Minetest Forum Topic 
 [here.](https://forum.minetest.net/viewtopic.php?f=9&t=15933)
 
