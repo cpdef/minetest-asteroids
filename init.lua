@@ -179,8 +179,8 @@ end
 	
 asteroids.register_planet_group("all ores", 300, {
         {60, {
-	        {"m1", 10}, 
-		{"m2", 20},
+	        {"m1", 30}, 
+		{"m2", 10},
 		}
 	},
 	{55, {
@@ -201,10 +201,6 @@ asteroids.register_planet_group("all ores", 300, {
 	{40, {
 	        {asteroids.DEFAULT_NODENAME, 100}, 
 		{"default:stone_with_gold", 2}
-		}
-	},
-	{36, {
-		{"default:lava_source", 1}
 		}
 	},
 	{35, {
